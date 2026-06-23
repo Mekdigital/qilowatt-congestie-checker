@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qilowatt Congestie-checker</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<style>
+:root{ --primary:#FF6933; --heading:#000; --text:#444; --beige:#F4F3EA; --white:#fff; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#fff;padding:24px;}
+.qw-congestie{font-family:'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--beige);border-radius:10px;padding:24px;max-width:560px;color:var(--text);}
+.qw-congestie .card{background:var(--white);border-radius:8px;padding:24px;}
+.qw-congestie .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#99502D;}
+.qw-congestie h2{font-size:22px;line-height:1.25;font-weight:700;color:var(--heading);margin:10px 0 6px;}
+.qw-congestie p{font-size:14px;line-height:1.6;margin:0 0 14px;}
+.qw-congestie .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.qw-congestie input{flex:1;min-width:150px;border:1px solid #000;background:#fff;padding:11px 13px;font-size:15px;font-family:inherit;color:#000;border-radius:0;}
+.qw-congestie input:focus{outline:2px solid var(--primary);outline-offset:-2px;}
+.qw-congestie button{background:var(--primary);color:#fff;border:none;border-radius:24px;padding:11px 22px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+.qw-congestie button.secondary{background:#111;}
+.qw-congestie button[disabled]{opacity:.6;cursor:default;}
+.qw-congestie .note{font-size:12px;color:#888;margin-top:13px;}
+.qw-congestie .error{font-size:13px;color:#A32D2D;margin-top:10px;}
+.qw-congestie .badge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:20px;}
+.qw-congestie .badge.wel{background:#EAF3DE;color:#3B6D11;}
+.qw-congestie .badge.geen{background:#EDEBE3;color:#5F5E5A;}
+.qw-congestie .money{background:#FDEEE4;border-radius:8px;padding:15px 17px;margin:4px 0 10px;}
+.qw-congestie .money .big{font-size:28px;font-weight:700;color:#000;}
+.qw-congestie .money .big span{color:var(--primary);}
+.qw-congestie .foot{font-size:11.5px;color:#999;line-height:1.45;margin:0 0 16px;}
+[hidden]{display:none!important;}
+</style>
+</head>
+<body>
+<div class="qw-congestie">
+  <div class="card" id="view-input">
+    <span class="eyebrow">Congestievoordeel</span>
+    <h2>Kun jij extra verdienen in jouw buurt?</h2>
+    <p>Vul je postcode in en check of jij in een congestiegebied woont. Juist daar levert een thuisbatterij extra op.</p>
+    <div class="row">
+      <input id="pc" placeholder="1234 AB" aria-label="Postcode" autocomplete="postal-code" maxlength="8">
+      <button id="check">Check mijn postcode</button>
+    </div>
+    <p class="error" id="error" hidden></p>
+    <p class="note">Gratis en anoniem. Je postcode wordt nergens opgeslagen.</p>
+  </div>
+
+  <div class="card" id="view-wel" hidden>
+    <span class="badge wel">Jouw postcode komt in aanmerking</span>
+    <h2>Goed nieuws, <span class="pc-out"></span> ligt in een congestiegebied</h2>
+    <p>Het net in jouw buurt zit vol. Juist daarom kun jij extra verdienen. Laat je thuisbatterij meesturen om het net te ontlasten en ontvang daarvoor een vergoeding, bovenop je normale opbrengst.</p>
+    <div class="money"><div class="big">tot &euro;&nbsp;<span>50</span> per kW per jaar</div></div>
+    <p class="foot">Indicatief bedrag uit de lopende pilot. Definitieve vergoeding en voorwaarden volgen van Frank Energie.</p>
+    <button class="cta">Vraag gratis advies aan</button>
+  </div>
+
+  <div class="card" id="view-geen" hidden>
+    <span class="badge geen">Geen congestie bekend</span>
+    <h2><span class="pc-out"></span> ligt niet in een congestiegebied</h2>
+    <p>In jouw buurt is op dit moment geen netcongestie bekend. De extra congestievergoeding geldt hier dus nog niet. Een thuisbatterij blijft alsnog de moeite waard.</p>
+    <p>Je wordt minder afhankelijk van het net en profiteert van dynamische prijzen. En zodra congestie jouw kant op komt, ben je er meteen klaar voor.</p>
+    <button class="cta secondary">Bekijk wat een batterij oplevert</button>
+  </div>
+</div>
+
+<script type="module">
+import { decodeData, encodePc6, normalizePc6, isValidPc6 } from './decoder.js';
+
+// Lokaal testen tegen het meegeleverde bestand. In productie (embed-webflow.html)
+// wijst dit naar de jsDelivr-URL met de juiste dataversie.
+const DATA_URL = './data/congestie.bin';
+const FUNNEL_URL = '/funnel-congestie';
+
+const $ = (s, r = document) => r.querySelector(s);
+const input = $('#pc'), btn = $('#check'), errEl = $('#error');
+let dataPromise = null;
+
+function loadData() {
+  if (!dataPromise) {
+    dataPromise = fetch(DATA_URL)
+      .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+      .then(b => decodeData(new Uint8Array(b)));
+  }
+  return dataPromise;
+}
+
+function showError(msg) { errEl.textContent = msg; errEl.hidden = false; }
+function clearError() { errEl.hidden = true; }
+
+function showResult(pc, inCongestie) {
+  $('#view-input').hidden = true;
+  const view = inCongestie ? $('#view-wel') : $('#view-geen');
+  view.hidden = false;
+  view.querySelector('.pc-out').textContent = pc.slice(0, 4) + ' ' + pc.slice(4);
+  const href = `${FUNNEL_URL}?Postcode=${encodeURIComponent(pc)}&herkomst=congestie`;
+  view.querySelector('.cta').onclick = () => { window.location.href = href; };
+}
+
+async function check() {
+  const pc = normalizePc6(input.value);
+  if (!isValidPc6(pc)) { showError('Vul een geldige postcode in, bijvoorbeeld 1234 AB.'); return; }
+  clearError();
+  btn.disabled = true; btn.textContent = 'Even checken...';
+  let set;
+  try { set = await loadData(); }
+  catch (e) {
+    btn.disabled = false; btn.textContent = 'Check mijn postcode';
+    showError('De check is even niet beschikbaar. Probeer het later opnieuw of bel ons.');
+    return;
+  }
+  showResult(pc, set.has(encodePc6(pc)));
+}
+
+btn.addEventListener('click', check);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+</script>
+</body>
+</html>
