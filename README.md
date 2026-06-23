@@ -38,7 +38,7 @@ python3 -m unittest            # Python-tests (en `node --test` indien Node aanw
 ## Hosting (jsDelivr)
 
 De `data/congestie.bin` wordt geserveerd via jsDelivr vanaf een publieke GitHub-repo:
-`https://cdn.jsdelivr.net/gh/<GH_USER>/qilowatt-congestie-checker@<tag>/data/congestie.bin`
+`https://cdn.jsdelivr.net/gh/Mekdigital/qilowatt-congestie-checker@<tag>/data/congestie.bin`
 
 De tag in de URL maakt elke versie onveranderlijk en cache-veilig. Updaten betekent een nieuwe tag plus `DATA_VERSION` ophogen in de embed.
 
