@@ -35,6 +35,14 @@ python3 -m unittest            # Python-tests (en `node --test` indien Node aanw
    `git add -A && git commit -m "data: update postcodes" && git tag JJJJ-MM-DD && git push origin main --tags`
 5. Zet `DATA_VERSION` in de Webflow-embed op de nieuwe tag.
 
+## Kaart bijwerken
+
+`maps/congestiegebieden.svg` kleurt de congestie-PC4's oranje op een grijs Nederland (918 van 924 PC4's, de rest bestaat niet in de 2020-geometrie). Opnieuw genereren na een data-update:
+
+1. PC4-lijst verversen: lees `source/Postcodes congestie.xlsx`, neem de eerste vier tekens per postcode, schrijf naar `data/congested_pc4.json`.
+2. PC4-geometrie ophalen: `curl -sL https://cartomap.github.io/nl/wgs84/postcode4_2020.geojson -o /tmp/pc4.geojson`.
+3. `python3 build_map.py` schrijft de SVG.
+
 ## Hosting (jsDelivr)
 
 De `data/congestie.bin` wordt geserveerd via jsDelivr vanaf een publieke GitHub-repo:
